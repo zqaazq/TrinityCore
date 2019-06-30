@@ -26897,7 +26897,7 @@ bool Player::CheckMovementInfo(MovementInfo const& movementInfo, bool jump)
         if (HasAuraType(SPELL_AURA_CONTROL_VEHICLE))
             return true;
 
-        if (HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+        if (movementInfo.GetMovementFlags() & MOVEMENTFLAG_ONTRANSPORT || HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
             return true;
 
         if (!IsControlledByPlayer())
