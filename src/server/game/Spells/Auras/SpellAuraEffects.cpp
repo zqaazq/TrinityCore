@@ -2161,6 +2161,11 @@ void AuraEffect::HandleFeignDeath(AuraApplication const* aurApp, uint8 mode, boo
         return;
 
     Unit* target = aurApp->GetTarget();
+    if (Player * targetPlayer = target->ToPlayer())
+    {
+        targetPlayer->SetUnderACKmount();
+        targetPlayer->SetSkipOnePacketForASH(true);
+    }
 
     if (apply)
     {
@@ -2234,12 +2239,6 @@ void AuraEffect::HandleFeignDeath(AuraApplication const* aurApp, uint8 mode, boo
 
         if (Creature* creature = target->ToCreature())
             creature->InitializeReactState();
-    }
-
-    if (Player* targetPlayer = target->ToPlayer())
-    {
-        targetPlayer->SetUnderACKmount();
-        targetPlayer->SetSkipOnePacketForASH(true);
     }
 }
 
