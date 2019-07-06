@@ -26920,7 +26920,7 @@ bool Player::CheckMovementInfo(MovementInfo const& movementInfo, bool jump)
         Position npos = movementInfo.pos;
         if (sWorld->getBoolConfig(CONFIG_ANTICHEAT_IGNORE_CONTROL_MOVEMENT_ENABLED))
         {
-            if (HasUnitState(UNIT_STATE_NOT_MOVE) && !UnderACKRootUpd())
+            if (HasUnitState(UNIT_STATE_ROOT | UNIT_STATE_STUNNED) && !UnderACKRootUpd())
             {
                 bool unrestricted = npos.GetPositionX() != GetPositionX() || npos.GetPositionY() != GetPositionY();
                 if (unrestricted)
