@@ -72,6 +72,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "../../../scripts/Custom/SpellRegulator/SpellRegulator.h"
 #include <cmath>
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -656,6 +657,9 @@ bool Unit::HasBreakableByDamageCrowdControlAura(Unit* excludeCasterChannel) cons
 
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(attacker, victim, damage);
+
+	if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
+		sSpellRegulator->Regulate(damage, spellProto->Id);
 
     if (victim->GetTypeId() == TYPEID_PLAYER)
     {
@@ -5088,6 +5092,7 @@ void Unit::RemoveAllGameObjects()
 
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
 {
+	sSpellRegulator->Regulate(log->damage, log->SpellID);
     WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16+4+4+4+1+4+4+1+1+4+4+1)); // we guess size
     data << log->target->GetPackGUID();
     data << log->attacker->GetPackGUID();
@@ -5157,7 +5162,7 @@ void Unit::SendSpellNonMeleeDamageLog(Unit* target, uint32 spellID, uint32 damag
 void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
 {
     AuraEffect const* aura = pInfo->auraEff;
-
+	sSpellRegulator->Regulate(pInfo->damage, aura->GetId());
     WorldPacket data(SMSG_PERIODICAURALOG, 30);
     data << GetPackGUID();
     data << aura->GetCasterGUID().WriteAsPacked();
