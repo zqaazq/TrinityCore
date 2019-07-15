@@ -1927,6 +1927,13 @@ ChatFlood.MessageDelay = 1
 
 ChatFlood.MuteTime = 10
 
+#  
+# Includes satellite to search for work elsewhere LFG 
+# Default:     0 - Disable  
+#              1 - Enable  
+ 
+LFG.Location.All = 0
+
 #
 #    Channel.RestrictedLfg
 #        Description: Restrict LookupForGroup channel to characters registered in the LFG tool.
