@@ -414,8 +414,8 @@ class boss_valithria_dreamwalker : public CreatureScript
             void UpdateAI(uint32 diff) override
             {
                 // does not enter combat
-                if (_instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) != IN_PROGRESS)
-                    return;
+                /*if (_instance->GetBossState(DATA_VALITHRIA_DREAMWALKER) != IN_PROGRESS)
+                    return;*/
 
                 _events.Update(diff);
 

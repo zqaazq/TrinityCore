@@ -72,6 +72,7 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
+#include "../../../scripts/Custom/SpellRegulator/SpellRegulator.h"
 #include <cmath>
 
 float baseMoveSpeed[MAX_MOVE_TYPE] =
@@ -656,6 +657,9 @@ bool Unit::HasBreakableByDamageCrowdControlAura(Unit* excludeCasterChannel) cons
 
     // Hook for OnDamage Event
     sScriptMgr->OnDamage(attacker, victim, damage);
+
+	if ((damagetype == SPELL_DIRECT_DAMAGE || damagetype == DOT) && spellProto)
+		sSpellRegulator->Regulate(damage, spellProto->Id);
 
     if (victim->GetTypeId() == TYPEID_PLAYER)
     {
@@ -5088,6 +5092,7 @@ void Unit::RemoveAllGameObjects()
 
 void Unit::SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log)
 {
+	sSpellRegulator->Regulate(log->damage, log->SpellID);
     WorldPacket data(SMSG_SPELLNONMELEEDAMAGELOG, (16+4+4+4+1+4+4+1+1+4+4+1)); // we guess size
     data << log->target->GetPackGUID();
     data << log->attacker->GetPackGUID();
@@ -5157,7 +5162,7 @@ void Unit::SendSpellNonMeleeDamageLog(Unit* target, uint32 spellID, uint32 damag
 void Unit::SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo)
 {
     AuraEffect const* aura = pInfo->auraEff;
-
+	sSpellRegulator->Regulate(pInfo->damage, aura->GetId());
     WorldPacket data(SMSG_PERIODICAURALOG, 30);
     data << GetPackGUID();
     data << aura->GetCasterGUID().WriteAsPacked();
@@ -8071,6 +8076,8 @@ void Unit::Mount(uint32 mount, uint32 VehicleId, uint32 creatureEntry)
         data << uint32(GameTime::GetGameTime());   // Packet counter
         data << player->GetCollisionHeight();
         player->SendDirectMessage(&data);
+
+        player->SetUnderACKmount();
     }
 
     RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_MOUNT);
@@ -8128,6 +8135,8 @@ void Unit::Dismount()
         if (Unit* charm = player->GetCharmed())
             if (charm->GetTypeId() == TYPEID_UNIT && charm->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED) && !charm->HasUnitState(UNIT_STATE_STUNNED))
                 charm->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);
+
+        player->SetUnderACKmount();
     }
 }
 
@@ -11100,6 +11109,13 @@ void Unit::SetControlled(bool apply, UnitState state)
             default:
                 break;
         }
+
+        if (GetTypeId() == TYPEID_PLAYER)
+        {
+            float fabscount = fabs(float(ToPlayer()->GetLastMoveClientTimestamp()) - float(ToPlayer()->GetLastMoveServerTimestamp()));
+            uint32 pinginthismoment = uint32(fabscount) / 1000000;
+            ToPlayer()->SetRootACKUpd(pinginthismoment);
+        }
     }
     else
     {
@@ -11170,12 +11186,15 @@ void Unit::SetStunned(bool apply)
         // MOVEMENTFLAG_ROOT cannot be used in conjunction with MOVEMENTFLAG_MASK_MOVING (tested 3.3.5a)
         // this will freeze clients. That's why we remove MOVEMENTFLAG_MASK_MOVING before
         // setting MOVEMENTFLAG_ROOT
+        StopMoving();
         RemoveUnitMovementFlag(MOVEMENTFLAG_MASK_MOVING);
         AddUnitMovementFlag(MOVEMENTFLAG_ROOT);
-        StopMoving();
 
         if (GetTypeId() == TYPEID_PLAYER)
+        {
+            ToPlayer()->SetSkipOnePacketForASH(true);
             SetStandState(UNIT_STAND_STATE_STAND);
+        }
 
         if (GetTypeId() == TYPEID_PLAYER)
         {
@@ -11234,9 +11253,9 @@ void Unit::SetRooted(bool apply)
         // MOVEMENTFLAG_ROOT cannot be used in conjunction with MOVEMENTFLAG_MASK_MOVING (tested 3.3.5a)
         // this will freeze clients. That's why we remove MOVEMENTFLAG_MASK_MOVING before
         // setting MOVEMENTFLAG_ROOT
+        StopMoving();
         RemoveUnitMovementFlag(MOVEMENTFLAG_MASK_MOVING);
         AddUnitMovementFlag(MOVEMENTFLAG_ROOT);
-        StopMoving();
 
         if (GetTypeId() == TYPEID_PLAYER)
         {
@@ -11244,6 +11263,7 @@ void Unit::SetRooted(bool apply)
             data << GetPackGUID();
             data << m_rootTimes;
             SendMessageToSet(&data, true);
+            ToPlayer()->SetSkipOnePacketForASH(true);
         }
         else
         {
@@ -11288,6 +11308,8 @@ void Unit::SetFeared(bool apply)
         if (!caster)
             caster = getAttackerForHelper();
         GetMotionMaster()->MoveFleeing(caster, fearAuras.empty() ? sWorld->getIntConfig(CONFIG_CREATURE_FAMILY_FLEE_DELAY) : 0);             // caster == NULL processed in MoveFleeing
+        if (Player* player = ToPlayer())
+            player->SetSkipOnePacketForASH(true);
     }
     else
     {
@@ -11313,6 +11335,8 @@ void Unit::SetConfused(bool apply)
     {
         SetTarget(ObjectGuid::Empty);
         GetMotionMaster()->MoveConfused();
+        if (Player* player = ToPlayer())
+            player->SetSkipOnePacketForASH(true);
     }
     else
     {
@@ -11579,7 +11603,10 @@ void Unit::RemoveCharmedBy(Unit* charmer)
     }
 
     if (Player* player = ToPlayer())
+    {
+        player->SetUnderACKmount();
         player->SetClientControl(this, true);
+    }
 
     if (playerCharmer && this != charmer->GetFirstControlled())
         playerCharmer->SendRemoveControlBar();
@@ -12040,6 +12067,7 @@ void Unit::KnockbackFrom(float x, float y, float speedXY, float speedZ)
 
         if (player->HasAuraType(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED) || player->HasAuraType(SPELL_AURA_FLY))
             player->SetCanFly(true, true);
+        player->SetSkipOnePacketForASH(true);
     }
 }
 
@@ -12371,6 +12399,7 @@ void Unit::JumpTo(float speedXY, float speedZ, bool forward)
         data << float(-speedZ);                                 // Z Movement speed (vertical)
 
         ToPlayer()->SendDirectMessage(&data);
+        ToPlayer()->SetSkipOnePacketForASH(true);
     }
 }
 
@@ -12509,6 +12538,9 @@ void Unit::_EnterVehicle(Vehicle* vehicle, int8 seatId, AuraApplication const* a
 
     if (Player* player = ToPlayer())
     {
+        player->SetUnderACKmount();
+        player->SetSkipOnePacketForASH(true);
+
         if (vehicle->GetBase()->GetTypeId() == TYPEID_PLAYER && player->IsInCombat())
         {
             vehicle->GetBase()->RemoveAura(const_cast<AuraApplication*>(aurApp));
@@ -12606,7 +12638,11 @@ void Unit::_ExitVehicle(Position const* exitPosition)
     AddUnitState(UNIT_STATE_MOVE);
 
     if (player)
+    {
         player->SetFallInformation(0, GetPositionZ());
+        player->SetUnderACKmount();
+        player->SetSkipOnePacketForASH(true);
+    }
     else if (HasUnitMovementFlag(MOVEMENTFLAG_ROOT))
     {
         WorldPacket data(SMSG_SPLINE_MOVE_UNROOT, 8);

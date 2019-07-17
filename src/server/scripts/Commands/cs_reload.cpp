@@ -46,6 +46,7 @@ EndScriptData */
 #include "WardenCheckMgr.h"
 #include "WaypointManager.h"
 #include "World.h"
+#include "../Custom/SpellRegulator/SpellRegulator.h"
 
 class reload_commandscript : public CommandScript
 {
@@ -157,6 +158,7 @@ public:
             { "spell_threats",                 rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_THREATS,                    true,  &HandleReloadSpellThreatsCommand,               "" },
             { "spell_group_stack_rules",       rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_GROUP_STACK_RULES,          true,  &HandleReloadSpellGroupStackRulesCommand,       "" },
             { "trainer",                       rbac::RBAC_PERM_COMMAND_RELOAD_TRAINER,                          true,  &HandleReloadTrainerCommand,                    "" },
+            { "spellregulator",                rbac::RBAC_PERM_COMMAND_RELOAD_TRINITY_STRING,                   true,  &HandleReloadSpellRegulator,                    "" },
             { "trinity_string",                rbac::RBAC_PERM_COMMAND_RELOAD_TRINITY_STRING,                   true,  &HandleReloadTrinityStringCommand,              "" },
             { "warden_action",                 rbac::RBAC_PERM_COMMAND_RELOAD_WARDEN_ACTION,                    true,  &HandleReloadWardenactionCommand,               "" },
             { "waypoint_scripts",              rbac::RBAC_PERM_COMMAND_RELOAD_WAYPOINT_SCRIPTS,                 true,  &HandleReloadWpScriptsCommand,                  "" },
@@ -207,6 +209,7 @@ public:
 
         HandleReloadAutobroadcastCommand(handler, "");
         HandleReloadBattlegroundTemplate(handler, "");
+		HandleReloadSpellRegulator(handler, "");
         return true;
     }
 
@@ -892,6 +895,15 @@ public:
         handler->SendGlobalGMSysMessage("DB table `spell_group_stack_rules` (spell stacking definitions) reloaded.");
         return true;
     }
+
+	static bool HandleReloadSpellRegulator(ChatHandler* handler, char const* /*args*/)
+	{
+		#define sSpellRegulator SpellRegulator::instance()
+
+		sSpellRegulator->LoadFromDB();
+		handler->SendGlobalGMSysMessage("DB table `spellregulator` reloaded.");
+		return true;
+	}
 
     static bool HandleReloadSpellPetAurasCommand(ChatHandler* handler, char const* /*args*/)
     {
