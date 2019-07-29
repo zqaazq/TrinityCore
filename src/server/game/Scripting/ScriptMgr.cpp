@@ -1360,6 +1360,44 @@ void ScriptMgr::OnGainCalculation(uint32& gain, Player* player, Unit* unit)
     FOREACH_SCRIPT(FormulaScript)->OnGainCalculation(gain, player, unit);
 }
 
+void ScriptMgr::Creature_SelectLevel(const CreatureTemplate *cinfo, Creature* creature)
+{
+    FOREACH_SCRIPT(AllCreatureScript)->Creature_SelectLevel(cinfo, creature);
+}
+
+void ScriptMgr::SetInitialWorldSettings()
+{
+    FOREACH_SCRIPT(WorldScript)->SetInitialWorldSettings();
+}
+
+float ScriptMgr::VAS_Script_Hooks()
+{
+    float VAS_Script_Hook_Version = 1.03f;
+
+//    TC_LOG_DEBUG(LOG_FILTER_WORLDSERVER, "------------------------------------------------------------");
+//    TC_LOG_DEBUG(LOG_FILTER_WORLDSERVER, "  Powered by {VAS} Script Hooks v%4.2f : Updated by Natfoth",VAS_Script_Hook_Version);
+//    TC_LOG_DEBUG(LOG_FILTER_WORLDSERVER, "--------------------------------------------------------------");
+
+    return VAS_Script_Hook_Version;
+}
+
+void ScriptMgr::ModifyHealRecieved(Unit* target, Unit* attacker, uint32& damage)
+{
+    FOREACH_SCRIPT(UnitScript)->ModifyHealRecieved(target, attacker, damage);
+}
+
+AllMapScript::AllMapScript(const char* name)
+    : ScriptObject(name)
+{
+    ScriptRegistry<AllMapScript>::Instance()->AddScript(this);
+}
+
+AllCreatureScript::AllCreatureScript(const char* name)
+: ScriptObject(name)
+{
+    ScriptRegistry<AllCreatureScript>::Instance()->AddScript(this);
+}
+
 void ScriptMgr::OnGroupRateCalculation(float& rate, uint32 count, bool isRaid)
 {
     FOREACH_SCRIPT(FormulaScript)->OnGroupRateCalculation(rate, count, isRaid);
@@ -1457,6 +1495,8 @@ void ScriptMgr::OnPlayerEnterMap(Map* map, Player* player)
     ASSERT(map);
     ASSERT(player);
 
+    FOREACH_SCRIPT(AllMapScript)->OnPlayerEnterAll(map, player);
+
     FOREACH_SCRIPT(PlayerScript)->OnMapChanged(player);
 
     SCR_MAP_BGN(WorldMapScript, map, itr, end, entry, IsWorldMap);
@@ -1476,6 +1516,8 @@ void ScriptMgr::OnPlayerLeaveMap(Map* map, Player* player)
 {
     ASSERT(map);
     ASSERT(player);
+
+    FOREACH_SCRIPT(AllMapScript)->OnPlayerLeaveAll(map, player);
 
     SCR_MAP_BGN(WorldMapScript, map, itr, end, entry, IsWorldMap);
         itr->second->OnPlayerLeave(map, player);
@@ -1566,7 +1608,18 @@ bool ScriptMgr::OnCastItemCombatSpell(Player* player, Unit* victim, SpellInfo co
     GET_SCRIPT_RET(ItemScript, item->GetScriptId(), tmpscript, true);
     return tmpscript->OnCastItemCombatSpell(player, victim, spellInfo, item);
 }
+/* Needs Fixed
+void ScriptMgr::OnCreatureUpdate(Creature* creature, uint32 diff)
+{
+    ASSERT(creature);
 
+
+    FOREACH_SCRIPT(AllCreatureScript)->OnAllCreatureUpdate(creature, diff);
+ 
+    GET_SCRIPT(CreatureScript, creature->GetScriptId(), tmpscript);
+    tmpscript->OnUpdate(creature, diff);
+}
+*/
 CreatureAI* ScriptMgr::GetCreatureAI(Creature* creature)
 {
     ASSERT(creature);
@@ -1803,6 +1856,14 @@ bool ScriptMgr::OnCriteriaCheck(uint32 scriptId, Player* source, Unit* target)
 
     GET_SCRIPT_RET(AchievementCriteriaScript, scriptId, tmpscript, false);
     return tmpscript->OnCheck(source, target);
+}
+
+//Called From Unit::DealDamage
+uint32 ScriptMgr::DealDamage(Unit* AttackerUnit, Unit *pVictim, uint32 damage, DamageEffectType damagetype)
+{
+    FOR_SCRIPTS_RET(UnitScript, itr, end, damage)
+        damage = itr->second->DealDamage(AttackerUnit, pVictim, damage, damagetype);
+    return damage;
 }
 
 // Player
@@ -2310,10 +2371,12 @@ template class TC_GAME_API ScriptRegistry<SpellScriptLoader>;
 template class TC_GAME_API ScriptRegistry<ServerScript>;
 template class TC_GAME_API ScriptRegistry<WorldScript>;
 template class TC_GAME_API ScriptRegistry<FormulaScript>;
+template class TC_GAME_API ScriptRegistry<AllMapScript>;
 template class TC_GAME_API ScriptRegistry<WorldMapScript>;
 template class TC_GAME_API ScriptRegistry<InstanceMapScript>;
 template class TC_GAME_API ScriptRegistry<BattlegroundMapScript>;
 template class TC_GAME_API ScriptRegistry<ItemScript>;
+template class TC_GAME_API ScriptRegistry<AllCreatureScript>;
 template class TC_GAME_API ScriptRegistry<CreatureScript>;
 template class TC_GAME_API ScriptRegistry<GameObjectScript>;
 template class TC_GAME_API ScriptRegistry<AreaTriggerScript>;
