@@ -18,7 +18,6 @@
 // This is where scripts' loading functions should be declared:
 void AddSC_SpellRegulator();
 void AddSC_Transmogrification();
-void AddSC_VAS_AutoBalance();
 
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
@@ -26,5 +25,4 @@ void AddCustomScripts()
 {
     AddSC_SpellRegulator();
     AddSC_Transmogrification();
-	AddSC_VAS_AutoBalance();
 }
