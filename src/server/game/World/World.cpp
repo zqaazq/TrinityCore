@@ -1420,6 +1420,13 @@ void World::LoadConfigSettings(bool reload)
     m_int_configs[CONFIG_ANTICHEAT_FLYHACK_TIMER] = sConfigMgr->GetIntDefault("AntiCheats.FlyHackTimer", 1000);
     // END anticheat system
 
+    // VAS-Autobalance
+    m_bool_configs[CONFIG_VAS_AUTOBALANCE] = sConfigMgr->GetBoolDefault("VAS.Unit.Enabled", false);
+    rate_values[RATE_VAS_DAMAGE_PERCENT] = sConfigMgr->GetFloatDefault("VAS.Unit.PercentOfDamage", 100.0f);
+    rate_values[RATE_VAS_HEAL_PERCENT] = sConfigMgr->GetFloatDefault("VAS.Unit.PercentOfHeal", 100.0f);
+    rate_values[RATE_VAS_MAXHP_PERCENT] = sConfigMgr->GetFloatDefault("VAS.Unit.PercentOfMaxHP", 100.0f);
+	rate_values[RATE_VAS_MAXMP_PERCENT] = sConfigMgr->GetFloatDefault("VAS.Unit.PercentOfMaxMP", 100.0f);
+
     // Dungeon finder
     m_int_configs[CONFIG_LFG_OPTIONSMASK] = sConfigMgr->GetIntDefault("DungeonFinder.OptionsMask", 1);
 
